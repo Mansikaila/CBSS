@@ -89,7 +89,6 @@ $form = new FormGenerator("tbl_city_master", $_bll->_mdl ?? null);
             <form id="masterForm" action="classes/cls_customer_master.php"  method="post" class="form-horizontal needs-validation" enctype="multipart/form-data" novalidate>
             <div class="box-body">
                 <div class="form-group row gy-2">
-                             
     <?php
             global $database_name;
             global $_dbh;
@@ -165,11 +164,14 @@ $form = new FormGenerator("tbl_city_master", $_bll->_mdl ?? null);
                                                 $cls .= " pan-field";
                                                 $error_container = '<div class="invalid-feedback pan-error">Please enter a valid PAN (10 characters).</div>';
                                             }
+                                        if ($fields_names[$i] == "email_id") {
+                                                $cls .= " email-field";
+                                                $error_container = '<div class="invalid-feedback email-error">Please enter a valid email address.</div>';
+                                            }
                                         if ($fields_names[$i] == "phone") {
                                                 $cls .= " mobile-field";
                                                 $error_container = '<div class="invalid-feedback mobile-error">Please enter a valid 10-digit mobile number.</div>';
                                             }
-
 
                                         $field_str .= '<input type="text" class="'.$cls.'" id="'.$fields_names[$i].'" name="'.$fields_names[$i].'" placeholder="'.ucwords(str_replace("_", " ", $fields_names[$i])).'" value="'.$value.'" '.$disabled_str.' '.$required_str.' />
                                         '.$error_container;
@@ -220,32 +222,35 @@ $form = new FormGenerator("tbl_city_master", $_bll->_mdl ?? null);
                                          if(!empty($value) && ($fields_types[$i]=="date" || $fields_types[$i]=="datetime-local" || $fields_types[$i]=="datetime" || $fields_types[$i]=="timestamp")) {
                                                 $value=date("Y-m-d",strtotime($value));
                                          }
-                                        if ($fields_types[$i] == "select") {
+                                         if ($fields_types[$i] == "select") {
                                             $cls = "form-select " . $required_str . " " . $duplicate_str;
-
                                             $table = explode("_", $fields_names[$i]);
                                             $field_name = $table[0] . "_name";
                                             $fields = $fields_names[$i] . ", " . $field_name;
                                             $tablename = "tbl_" . $table[0] . "_master";
                                             $selected_val = isset($_bll->_mdl->$cls_field_name) ? $_bll->_mdl->$cls_field_name : "";
-
                                             $where_condition_val = !empty($where_condition[$i]) ? $where_condition[$i] : null;
-
                                             if (!empty($dropdown_table[$i]) && !empty($label_column[$i]) && !empty($value_column[$i])) {
                                                 $dropdown_html = getDropdown($dropdown_table[$i],$value_column[$i],$label_column[$i],
                                                     $where_condition_val,$fields_names[$i],$selected_val,$cls, $required_str);
-                                                if (strpos(strtolower($fields_names[$i]), 'city') !== false) {
-                                                    $field_str .= '
-                                                        <div style="display: flex; align-items: center; gap: 5px;">
+                                            if (strpos(strtolower($fields_names[$i]), 'city') !== false) {
+                                            $field_str .= '
+                                                <div>
+                                                    <div style="display: flex; align-items: flex-start; gap: 5px;">
+                                                        <div style="flex: 1;">
                                                             ' . $dropdown_html . '
-                                                            <button type="button" class="btn btn-primary btn-sm btn_plus_icon" onclick="openCityModal()" style="padding: 4px 8px;">
-                                                                <i class="fa fa-plus" style="cursor: pointer;"></i>
-                                                            </button>
+                                                            ' . $error_container . '
                                                         </div>
-                                                        ' . $error_container;
-                                                } else {
-                                                    $field_str .= $dropdown_html . $error_container;
-                                                }
+                                                        <button type="button" class="btn btn-primary btn-sm btn_plus_icon" onclick="openCityModal()" style="padding: 4px 8px; height: 38px; margin-top: 0;">
+                                                            <i class="fa fa-plus" style="cursor: pointer;"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>';
+
+                                        } else {
+                                            $field_str .= $dropdown_html . $error_container;
+                                        }
+
                                             }
                                         }
                                         else {
@@ -282,8 +287,7 @@ $form = new FormGenerator("tbl_city_master", $_bll->_mdl ?? null);
                                             }
                                             $hidden_str.='
                                             <input type="'.$fields_types[$i].'" id="'.$fields_names[$i].'" name="'.$fields_names[$i].'" value= "'.$hiddenvalue.'"  />';
-                                            /* by Hetasvi*/
-                                                if($fields_names[$i]=="state_id") {
+                                            if($fields_names[$i]=="state_id") {
                                                 $lbl_str='<label for="state_name" class="col-4 col-sm-2 col-md-1 col-lg-1 control-label">State</label>';
                                                 $field_str .= '<input type="text" class="form-control" id="state_name" name="state_name" value="'.$state_name.'" disabled />';
                                             }
@@ -291,7 +295,6 @@ $form = new FormGenerator("tbl_city_master", $_bll->_mdl ?? null);
                                                 $lbl_str='<label for="country_name" class="col-4 col-sm-2 col-md-1 col-lg-1 control-label">Country</label>';
                                                 $field_str .= '<input type="text" class="form-control" id="country_name" name="country_name" value="'.$country_name.'" disabled />';
                                             }
-                                            /* by Hetasvi*/
                                         }
                                         break;
                                     case "textarea":
@@ -330,7 +333,6 @@ $form = new FormGenerator("tbl_city_master", $_bll->_mdl ?? null);
                         } // field_types if ends
                     }
              } 
-            
             ?>
                  </div><!-- /.row -->
               </div>
@@ -379,8 +381,8 @@ $form = new FormGenerator("tbl_city_master", $_bll->_mdl ?? null);
                 <input type="hidden" id="modified_by" name="modified_by" value="<?php echo USER_ID; ?>">
                 <input type="hidden" id="modified_date" name="modified_date" value="<?php echo date("Y-m-d H:i:s"); ?>">
                 <input type="hidden" id="detail_records" name="detail_records" />
-                <input type="hidden" id="deleted_records" name="deleted_records" />
-                <input type="hidden" name="masterHidden" id="masterHidden" value="save" />
+                                        <input type="hidden" id="deleted_records" name="deleted_records" />
+                    <input type="hidden" name="masterHidden" id="masterHidden" value="save" />
                 <input class="btn btn-success" type="button" id="btn_add" name="btn_add" value= "Save">
                 <input type="button" class="btn btn-primary" id="btn_search" name="btn_search" value="Search" onclick="window.location='srh_customer_master.php'">
                 <input class="btn btn-secondary" type="button" id="btn_reset" name="btn_reset" value="Reset" onclick="reset_data();" >
@@ -408,85 +410,63 @@ $form = new FormGenerator("tbl_city_master", $_bll->_mdl ?? null);
               <div class="modal-body">
                 <div class="box-body container-fluid">
                     <div class="form-group row" >
-                  <?php
-                $hidden_str = "";
-                $table_name_detail = "tbl_contact_person_detail";
-                $select = $_dbh->prepare("SELECT `generator_options` FROM `tbl_generator_master` WHERE `table_name` = ?");
-                $select->bindParam(1, $table_name_detail);
-                $select->execute();
-                $row = $select->fetch(PDO::FETCH_ASSOC);
-
-                if ($row) {
-                    $generator_options = json_decode($row["generator_options"]);
-                    if ($generator_options) {
-                        $fields_names = $generator_options->field_name;
-                        $fields_types = $generator_options->field_type;
-                        $field_scale = $generator_options->field_scale;
-                        $dropdown_table = $generator_options->dropdown_table;
-                        $label_column = $generator_options->label_column;
-                        $value_column = $generator_options->value_column;
-                        $where_condition = $generator_options->where_condition;
-                        $fields_labels = $generator_options->field_label;
-                        $field_display = $generator_options->field_display;
-                        $field_required = $generator_options->field_required;
-                        $allow_zero = $generator_options->allow_zero;
-                        $allow_minus = $generator_options->allow_minus;
-                        $chk_duplicate = $generator_options->chk_duplicate;
-                        $field_data_type = $generator_options->field_data_type;
-                        $field_is_disabled = $generator_options->is_disabled;
-
-                        if (is_array($fields_names) && !empty($fields_names)) {
-                            for ($i = 0; $i < count($fields_names); $i++) {
-                                $required = "";
-                                $checked = "";
-                                $field_str = "";
-                                $lbl_str = "";
-                                $required_str = "";
-                                $min_str = "";
-                                $step_str = "";
-                                $error_container = "";
-                                $is_disabled = 0;
-                                $disabled_str = "";
-                                $duplicate_str = "";
-                                $display_str = "";
-                                $cls_field_name = "_" . $fields_names[$i];
-
-                                if (!empty($field_required) && in_array($fields_names[$i], $field_required)) {
-                                    $required = 1;
+    <?php
+            $hidden_str="";
+            $table_name_detail="tbl_contact_person_detail";
+            $select = $_dbh->prepare("SELECT `generator_options` FROM `tbl_generator_master` WHERE `table_name` = ?");
+            $select->bindParam(1, $table_name_detail);
+            $select->execute();
+            $row = $select->fetch(PDO::FETCH_ASSOC);
+             if($row) {
+                    $generator_options=json_decode($row["generator_options"]);
+                    if($generator_options) {
+                        $fields_names=$generator_options->field_name;
+                        $fields_types=$generator_options->field_type;
+                        $field_scale=$generator_options->field_scale;
+                        $dropdown_table=$generator_options->dropdown_table;
+                         $label_column=$generator_options->label_column;
+                         $value_column=$generator_options->value_column;
+                         $where_condition=$generator_options->where_condition;
+                        $fields_labels=$generator_options->field_label;
+                        $field_display=$generator_options->field_display;
+                        $field_required=$generator_options->field_required;
+                        $allow_zero=$generator_options->allow_zero;
+                        $allow_minus=$generator_options->allow_minus;
+                        $chk_duplicate=$generator_options->chk_duplicate;
+                        $field_data_type=$generator_options->field_data_type;
+                        $field_is_disabled=$generator_options->is_disabled;
+                        if(is_array($fields_names) && !empty($fields_names)) {
+                            for($i=0;$i<count($fields_names);$i++) {
+                                $required="";$checked="";$field_str="";$lbl_str="";$required_str="";$min_str="";$step_str="";$error_container="";$is_disabled=0;$disabled_str="";$duplicate_str="";
+                                $display_str="";
+                                $cls_field_name="_".$fields_names[$i];
+                                 
+                                if(!empty($field_required) && in_array($fields_names[$i],$field_required)) {
+                                    $required=1;
                                 }
-                                if (!empty($field_is_disabled) && in_array($fields_names[$i], $field_is_disabled)) {
-                                    $is_disabled = 1;
+                                if(!empty($field_is_disabled) && in_array($fields_names[$i],$field_is_disabled)) {
+                                    $is_disabled=1;
                                 }
-                                if (!empty($chk_duplicate) && in_array($fields_names[$i], $chk_duplicate)) {
-                                    $error_container = '<div class="invalid-feedback"></div>';
-                                    $duplicate_str = "duplicate";
+                                if(!empty($chk_duplicate) && in_array($fields_names[$i],$chk_duplicate)) {
+                                    $error_container='<div class="invalid-feedback"></div>';
+                                    $duplicate_str="duplicate";
                                 }
-                                if (!empty($field_display) && in_array($fields_names[$i], $field_display)) {
-                                    $display_str = "display";
+                                if(!empty($field_display) && in_array($fields_names[$i],$field_display)) {
+                                    $display_str="display";
                                 }
-
-                                $lbl_str = '<label for="' . $fields_names[$i] . '" class="col-sm-4 control-label">' . $fields_labels[$i] . '';
-                                if ($required) {
-                                    $required_str = "required";
-                                    $lbl_str .= "*";
-                                    $error_container = '<div class="invalid-feedback"></div>';
+                                $lbl_str='<label for="'.$fields_names[$i].'" class="col-sm-4 control-label">'.$fields_labels[$i].'';
+                                if($required) {
+                                    $required_str="required";
+                                    $lbl_str.="*";
+                                    $error_container='<div class="invalid-feedback"></div>';
                                 }
-                                if ($is_disabled) {
-                                    $disabled_str = "disabled";
+                                if($is_disabled) {
+                                    $disabled_str="disabled";
                                 }
-
-                                $lbl_str .= "</label>";
-                                $value = isset($_bll->_mdl->$cls_field_name) ? $_bll->_mdl->$cls_field_name : "";
-
-                                switch ($fields_types[$i]) {
+                                
+                                $lbl_str.="</label>";
+                                switch($fields_types[$i]) {
                                     case "text":
-                                        $cls = "form-control " . $required_str . " " . $duplicate_str;
-                                        if ($fields_names[$i] == "mobile") {
-                                            $cls .= " mobile-field";
-                                            $error_container = '<div class="invalid-feedback mobile-error">Please enter a valid 10-digit mobile number.</div>';
-                                        }
-                                        $field_str .= '<input type="text" class="' . $cls . '" id="' . $fields_names[$i] . '" name="' . $fields_names[$i] . '" placeholder="' . ucwords(str_replace("_", " ", $fields_names[$i])) . '" value="' . $value . '" ' . $required_str . ' ' . $disabled_str . ' ' . $duplicate_str . ' >' . $error_container;
-                                        break;
                                     case "email":
                                     case "file":
                                     case "date":
@@ -495,40 +475,105 @@ $form = new FormGenerator("tbl_city_master", $_bll->_mdl ?? null);
                                     case "checkbox":
                                     case "number":
                                     case "select":
-                                        $cls = "form-control " . $required_str . " " . $duplicate_str . " " . $display_str;
-                                        $field_str .= '<input type="' . $fields_types[$i] . '" class="' . $cls . '" id="' . $fields_names[$i] . '" name="' . $fields_names[$i] . '" placeholder="' . ucwords(str_replace("_", " ", $fields_names[$i])) . '" value="' . $value . '" ' . $required_str . ' ' . $disabled_str . ' />' . $error_container;
-                                        break;
+                                        $value="";
+                                        $field_str=""; $cls="";
+                                        if($fields_types[$i]=="checkbox" || $fields_types[$i]=="radio") {
+                                            $cls.=$display_str." ".$required_str;
+                                             if(isset(${"val_$fields_names[$i]"}) &&  ${"val_$fields_names[$i]"}==1) {
+                                                $chk_str="checked='checked'";
+                                             }
+                                            $value="1";
+                                             $field_str.='<input type="hidden" name="'.$fields_names[$i].'" value="0" />';
+                                        } else {
+                                            $cls.="form-control ".$required_str." ".$duplicate_str." ".$display_str;
+                                            $chk_str="";
+                                             if(isset(${"val_$fields_names[$i]"}))  {
+                                                $value=$fields_names[$i];
+                                             }
+                                        }
+                                         if($fields_types[$i]=="number") {
+                                            $step="";
+                                            if(!empty($field_scale[$i]) && $field_scale[$i]>0) {
+                                                for($k=1;$k<$field_scale[$i];$k++) {
+                                                    $step.=0;
+                                                }
+                                                $step="0.".$step."1";
+                                            } else {
+                                                $step=1;
+                                            }
+                                            $step_str='step="'.$step.'"';
+                                             $min=1; 
+                                             if(!empty($allow_zero) && in_array($fields_names[$i],$allow_zero)) 
+                                                 $min=0;
+                                             if(!empty($allow_minus) && in_array($fields_names[$i],$allow_minus)) 
+                                                $min="";
 
+                                             $min_str='min="'.$min.'"';
+                                         }
+                                         if($fields_types[$i]=="select") {
+                                            $cls="form-select ".$required_str." ".$duplicate_str." ".$display_str;
+                                            $table=explode("_",$fields_names[$i]);
+                                            $field_name=$table[0]."_name";
+                                            $fields=$fields_names[$i].", ".$table[0]."_name";
+                                            $tablename="tbl_".$table[0]."_master";
+                                            $selected_val="";
+                                            if(isset(${"val_$fields_names[$i]"})) {
+                                                $selected_val=${"val_$fields_names[$i]"};
+                                            }
+                                            if(!empty($where_condition[$i]))
+                                                $where_condition_val=$where_condition[$i];
+                                            else {
+                                                $where_condition_val=null;
+                                            }
+                                            if(!empty($dropdown_table[$i]) && !empty($label_column[$i]) && !empty($value_column[$i]))
+                                                $field_str.=getDropdown($dropdown_table[$i],$value_column[$i],$label_column[$i],$where_condition_val,$fields_names[$i],$selected_val,$cls,$required_str);
+                                                $field_str.=$error_container;
+                                                } else {
+                                            $field_str.='<input type="'.$fields_types[$i].'" class="'.$cls.'" id="'.$fields_names[$i].'" name="'.$fields_names[$i].'" placeholder="'.ucwords(str_replace("_"," ",$fields_names[$i])).'" value= "'.$value.'"  '.$required_str.' '.$min_str.'  '.$step_str.' '.$chk_str.' '.$disabled_str.' />
+                                            '.$error_container;
+                                        }
+                                        break;
                                     case "hidden":
-                                        $hiddenvalue = isset(${"val_$fields_names[$i]"}) ? ${"val_$fields_names[$i]"} : 0;
-                                        $hidden_str .= '<input type="' . $fields_types[$i] . '" id="' . $fields_names[$i] . '" name="' . $fields_names[$i] . '" value="' . $hiddenvalue . '" class="exclude-field" />';
-                                        break;
+                                        $lbl_str="";
+                                        if($field_data_type[$i]=="int" || $field_data_type[$i]=="bigint"  || $field_data_type[$i]=="tinyint" || $field_data_type[$i]=="decimal")
+                                            $hiddenvalue=0;
+                                        else
+                                            $hiddenvalue="";
+                                       
+                                            if(isset(${"val_$fields_names[$i]"})) {
+                                                $hiddenvalue=${"val_$fields_names[$i]"};
+                                            }
+                                             if($fields_names[$i]!="customer_id") {
+                                                $hidden_str.='
+                                                <input type="'.$fields_types[$i].'" id="'.$fields_names[$i].'" name="'.$fields_names[$i].'" value= "'.$hiddenvalue.'" class="exclude-field"  />';
+                                                }
 
+                                        break;
                                     case "textarea":
-                                        $value = isset(${"val_$fields_names[$i]"}) ? ${"val_$fields_names[$i]"} : "";
-                                        $field_str .= '<textarea id="' . $fields_names[$i] . '" name="' . $fields_names[$i] . '" class="' . $cls . '" placeholder="' . ucwords(str_replace("_", " ", $fields_names[$i])) . '" ' . $required_str . ' ' . $disabled_str . '>' . $value . '</textarea>' . $error_container;
+                                        $value="";
+                                        if(isset(${"val_$fields_names[$i]"}))
+                                             $value=${"val_$fields_names[$i]"};
+                                        $field_str.='<textarea id="'.$fields_names[$i].'" name="'.$fields_names[$i].'" class="'.$cls.'" placeholder="'.ucwords(str_replace("_"," ",$fields_names[$i])).'" '.$required_str.' '.$disabled_str.'>'.$value.'</textarea>
+                                        '.$error_container;
                                         break;
-
                                     default:
                                         break;
                                 } //switch ends
-
-                                if ($field_str) {
-                                    ?>
-                                    <div class="col-sm-6 row gy-1">
-                                        <?php echo $lbl_str; ?>
-                                        <div class="col-sm-8">
-                                            <?php echo $field_str; ?>
-                                        </div>
-                                    </div>
-                                    <?php
-                                }
-                            } // for loop ends
+                                 if($field_str) {
+                            ?>
+                                <div class="col-sm-6 row gy-1">
+                                  <?php echo $lbl_str; ?>
+                                  <div class="col-sm-8">
+                                    <?php echo $field_str; ?>
+                                  </div>
+                                </div>
+                        <?php
+                        }
+                            } //for loop ends
                         } // field_types if ends
                     }
-                }
-                ?>
-
+             } 
+            ?> 
                     </div>
               </div>
               </div>
@@ -544,8 +589,7 @@ $form = new FormGenerator("tbl_city_master", $_bll->_mdl ?? null);
         </div> <!-- /.modal -->
     </div>
     <!-- /Modal -->
-
-      <div class="modal fade" id="cityModal" tabindex="-1" aria-labelledby="cityModalLabel" aria-hidden="true">
+    <div class="modal fade" id="cityModal" tabindex="-1" aria-labelledby="cityModalLabel" aria-hidden="true">
     <div class="modal-dialog customer-model-dialog" >
         <div class="modal-content">
             <div class="modal-header">
@@ -669,8 +713,8 @@ if (detailForm) {
     const errorContainer = document.querySelector('.gstin-error');
     const panField = document.querySelector('.pan-field');
     const panError = document.querySelector('.pan-error');
-//    const emailField = document.querySelector('.email-field');
-//    const emailError = document.querySelector('.email-error');
+    const emailField = document.querySelector('.email-field');
+    const emailError = document.querySelector('.email-error');
     const mobileField = document.querySelector('.mobile-field');
     const mobileError = document.querySelector('.mobile-error');
 
@@ -706,6 +750,20 @@ if (detailForm) {
             }
         });
     }
+     if (emailField) {
+        emailField.addEventListener('blur', function () {
+            const val = emailField.value.trim();
+            const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            if (val !== '' && !emailPattern.test(val)) {
+                emailField.classList.add('is-invalid');
+                emailError.style.display = 'block';
+                emailField.focus();
+            } else {
+                emailField.classList.remove('is-invalid');
+                emailError.style.display = 'none';
+            }
+        });
+    }
     if (mobileField) {
     mobileField.addEventListener('keydown', function (e) {
         if (e.key === 'Tab') {
@@ -724,7 +782,6 @@ if (detailForm) {
     });
 }
     /*done*/
-    
          const tableHead = document.getElementById("tableHead");
         const tableBody = document.getElementById("tableBody");
         const form = document.getElementById("popupForm");
@@ -759,10 +816,12 @@ if (detailForm) {
             const data = jsonData[index];
 
             for (let key in data) {
-                const inputFields = form.elements[key]; 
+                const inputFields = form.elements[key]; // May return NodeList if multiple inputs exist
 
-                if (!inputFields) continue;
+                if (!inputFields) continue; // Skip if field not found
+
                 if (inputFields.length) {
+                    // If multiple inputs exist (radio, checkbox, hidden with same name)
                     inputFields.forEach(inputField => {
                         if (inputField.type === "checkbox" || inputField.type === "radio") {
                              if (inputField.value === data[key]) {
@@ -773,11 +832,11 @@ if (detailForm) {
                             }
                         }
                         else if (inputField.type !== "hidden") {
-                            inputField.value = data[key];
+                            inputField.value = data[key]; // Avoid setting hidden field values
                         }
                     });
                 } else {
-                        inputFields.value = data[key];
+                        inputFields.value = data[key]; // Avoid hidden fields
                 }
             }
         } else {
@@ -785,12 +844,14 @@ if (detailForm) {
             clearForm(form);
         }
         modal.show();
+
+        // Ensure focus on the first visible field
         setTimeout(() => {
             const firstInput = form.querySelector("input:not([type=hidden]), input:not(.btn-close), select, textarea");
             if (firstInput) firstInput.focus();
         }, 10);
     }
-        /*fetchCountryAndState by Hetasvi*/
+ /*fetchCountryAndState by Hetasvi*/
     function fetchCountryAndState(cityId) {
     $.ajax({
         url: "classes/cls_customer_master.php",
@@ -828,9 +889,11 @@ if (cityField) {
 }
    /*end fetchCountryAndState by Hetasvi*/  
     function saveData() {
+    
         const formData = new FormData(form);
         const newEntry = {};
         const allEntries= {};
+
          // Convert form data to object (excluding hidden fields)
           for (const [key, value] of formData.entries()) {
             if (!getHiddenFields().includes(key) && getDisplayFields().includes(key)) {
@@ -1080,6 +1143,11 @@ function updateTableRow(index, rowData) {
         });
          if(firstelement) firstelement.focus(); 
          return false;
+    } else {
+        form.querySelectorAll(".is-invalid").forEach(function (input) {
+          input.classList.remove("is-invalid");
+          input.nextElementSibling.textContent = "";
+        });
     }
     setTimeout(function(){
         const invalidInputs = document.querySelectorAll(".is-invalid");
@@ -1122,9 +1190,8 @@ function updateTableRow(index, rowData) {
     },200);
 } );
 });
-
 </script>
-<script>
+    <script>
     $(document).ready(function () {
         window.openCityModal = function () {
             $("#cityModal").modal("show");
