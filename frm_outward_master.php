@@ -1,0 +1,854 @@
+<?php
+    include("classes/cls_outward_master.php");
+    include("include/header.php");
+    include("include/theme_styles.php");
+    include("include/header_close.php");
+    $transactionmode="";
+    if(isset($_REQUEST["transactionmode"]))       
+    {    
+        $transactionmode=$_REQUEST["transactionmode"];
+    }
+    if( $transactionmode=="U")       
+    {    
+        $_bll->fillModel();
+        $label="Update";
+    } else {
+        $label="Add";
+    }
+global $_dbh;
+$next_outward_sequence = 1;
+$outward_no_formatted = '';
+$finYear = '';
+try {
+    $companyYearId = $_SESSION['sess_company_year_id'] ?? null;
+
+    if ($companyYearId) {
+        $stmt = $_dbh->prepare("
+            SELECT 
+                CONCAT(LPAD(YEAR(start_date) % 100, 2, '0'), '-', LPAD(YEAR(end_date) % 100, 2, '0')) AS short_range,
+                start_date, end_date
+            FROM tbl_company_year_master 
+            WHERE company_year_id = ?
+        ");
+        $stmt->execute([$companyYearId]);
+        $yearRow = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($yearRow) {
+            $finYear = $yearRow['short_range'];
+            $startDate = $yearRow['start_date'];
+            $endDate = $yearRow['end_date'];
+            $stmt2 = $_dbh->prepare("
+                SELECT MAX(outward_sequence) AS max_seq
+                FROM tbl_outward_master 
+                WHERE outward_date BETWEEN ? AND ?
+            ");
+            $stmt2->execute([$startDate, $endDate]);
+            $seqRow = $stmt2->fetch(PDO::FETCH_ASSOC);
+
+            if ($seqRow && is_numeric($seqRow['max_seq'])) {
+                $next_outward_sequence = $seqRow['max_seq'] + 1;
+            }
+            $sequence_padded = str_pad($next_outward_sequence, 4, '0', STR_PAD_LEFT);
+            $outward_no_formatted = $sequence_padded . '/' . $finYear;
+        }
+    }
+
+} catch (PDOException $e) {
+    echo "Database error: " . $e->getMessage();
+}
+?>
+<!-- ADD THE CLASS layout-top-nav TO REMOVE THE SIDEBAR. -->
+<body class="hold-transition skin-blue layout-top-nav">
+<?php
+    include("include/body_open.php");
+?>
+<div class="wrapper">
+<?php
+    include("include/navigation.php");
+?>
+  <!-- Full Width Column -->
+  <div class="content-wrapper">
+    <div class="container-fluid">
+      <!-- Content Header (Page header) -->
+      <section class="content-header">
+        <h1>
+          <?php echo $label; ?> Data
+        </h1>
+      </section>
+
+      <!-- Main content -->
+      <section class="content">
+    <div class="col-md-12" style="padding:0;">
+       <div class="box box-info">
+            <!-- form start -->
+            <form id="masterForm" action="classes/cls_outward_master.php"  method="post" class="form-horizontal needs-validation" enctype="multipart/form-data" novalidate>
+            <div class="box-body">
+                <div class="form-group row gy-2">                
+    <?php
+            global $database_name;
+            global $_dbh;
+            $hidden_str="";
+            $table_name="tbl_outward_master";
+            $lbl_array=array();
+            $field_array=array();
+            $err_array=array();
+            $select = $_dbh->prepare("SELECT `generator_options` FROM `tbl_generator_master` WHERE `table_name` = ?");
+            $select->bindParam(1, $table_name);
+            $select->execute();
+            $row = $select->fetch(PDO::FETCH_ASSOC);
+             if($row) {
+                    $generator_options=json_decode($row["generator_options"]);
+                    if($generator_options) {
+                        $table_layout=$generator_options->table_layout;
+                        $fields_names=$generator_options->field_name;
+                        $fields_types=$generator_options->field_type;
+                        $field_scale=$generator_options->field_scale;
+                        $dropdown_table=$generator_options->dropdown_table;
+                        $label_column=$generator_options->label_column;
+                        $value_column=$generator_options->value_column;
+                        $where_condition=$generator_options->where_condition;
+                        $fields_labels=$generator_options->field_label;
+                        $field_display=$generator_options->field_display;
+                        $field_required=$generator_options->field_required;
+                        $allow_zero=$generator_options->allow_zero;
+                        $allow_minus=$generator_options->allow_minus;
+                        $chk_duplicate=$generator_options->chk_duplicate;
+                        $field_data_type=$generator_options->field_data_type;
+                        $field_is_disabled=$generator_options->is_disabled;
+                        $after_detail=$generator_options->after_detail;
+
+                        $old_table_layout=$table_layout;
+                        if($table_layout=="horizontal") {
+                            $label_layout_classes="col-4 col-sm-2 col-md-1 col-lg-1 control-label";
+                            $field_layout_classes="col-8 col-sm-4 col-md-3 col-lg-2";
+                        } else {
+                            $label_layout_classes="col-12 col-sm-3 col-md-2 col-lg-2 col-xl-2 col-xxl-1 col-form-label";
+                            $field_layout_classes="col-12 col-sm-6 col-md-4 col-lg-4 col-xl-3 col-xxl-2";
+                        }
+                        
+                        if(is_array($fields_names) && !empty($fields_names)) {
+                            
+                            for($i=0;$i<count($fields_names);$i++) {
+                                if($fields_names[$i] == "outward_sequence" || $fields_names[$i] == "outward_no") {
+                                    $table_layout="horizontal";
+                                } else{
+                                    $table_layout=$old_table_layout;
+                                } 
+                               $table_layout = ($fields_names[$i] == "outward_sequence" || $fields_names[$i] == "outward_no") ? "horizontal" : $old_table_layout;
+                                if ($fields_names[$i] == "outward_sequence" || $fields_names[$i] == "outward_no") {
+                                    if ($fields_names[$i] == "outward_sequence") {
+                                        $label_layout_classes = "col-12 col-sm-3 col-md-2 col-lg-2 col-xl-2 col-xxl-1 col-form-label";
+                                        $field_layout_classes = "col-12 col-sm-3 col-md-2 col-lg-1";
+                                    }
+                                    else if ($fields_names[$i] == "outward_no") {
+                                        $label_layout_classes = "col-12 col-sm-3 col-md-2 col-lg-2 col-xl-2 col-xxl-1 col-form-label";
+                                        $field_layout_classes = "col-12 col-sm-4 col-md-2 col-lg-1";
+                                    }
+                                } else {
+                                    if ($table_layout == "horizontal") {
+                                        $label_layout_classes = "col-12 col-sm-3 col-md-2 col-lg-2 col-xl-2 col-xxl-1 col-form-label";
+                                        $field_layout_classes = "col-12 col-sm-8 col-md-9 col-lg-10";
+                                    } else {
+                                        $label_layout_classes = "col-12 col-sm-3 col-md-2 col-lg-2 col-xl-2 col-xxl-1 col-form-label";
+                                        $field_layout_classes = "col-12 col-sm-6 col-md-4 col-lg-4 col-xl-3 col-xxl-2";
+                                    }
+                                }
+                                $required="";$checked="";$field_str="";$lbl_str="";$required_str="";$min_str="";$step_str="";$error_container="";$duplicate_str="";
+                                 $cls_field_name="_".$fields_names[$i];$is_disabled=0;$disabled_str="";
+                                 
+                                if(!empty($field_required) && in_array($fields_names[$i],$field_required)) {
+                                    $required=1;
+                                }
+                                if(!empty($field_is_disabled) && in_array($fields_names[$i],$field_is_disabled)) {
+                                    $is_disabled=1;
+                                }
+                                if(!empty($chk_duplicate) && in_array($fields_names[$i],$chk_duplicate)) {
+                                    $error_container='<div class="invalid-feedback"></div>';
+                                    $duplicate_str="duplicate";
+                                }
+                                   $custom_col_class = "";
+                                if($fields_labels[$i]) {
+                                    $lbl_str='<label for="'.$fields_names[$i].'" class="'.$label_layout_classes.'">'.$fields_labels[$i].'';
+                                     if($table_layout=="vertical") {
+                                        $field_layout_classes="col-12 col-sm-6 col-md-4 col-lg-4 col-xl-3 col-xxl-2";
+                                    } 
+                                } else {
+                                    if($table_layout=="vertical") {
+                                        $field_layout_classes="col-12";
+                                    } 
+                                }   
+                                if($required) {
+                                    $required_str="required";
+                                    $error_container='<div class="invalid-feedback"></div>';
+                                    $lbl_str.="*";
+                                }
+                                if($is_disabled) {
+                                    $disabled_str="disabled";
+                                }
+                               
+                                $lbl_str.="</label>";
+                                switch($fields_types[$i]) {
+                                    case "text":
+                                    case "email":
+                                    case "file":
+                                    case "date":
+                                    case "datetime-local":
+                                    case "radio":
+                                    case "checkbox":
+                                    case "number":
+                                    case "select":
+                                        $value="";$field_str="";$cls="";$flag=0;
+                                         $table=explode("_",$fields_names[$i]);
+                                            $field_name=$table[0]."_name";
+                                            $fields=$fields_names[$i].", ".$table[0]."_name";
+                                            $tablename="tbl_".$table[0]."_master";
+                                            $selected_val="";
+                                            if($_bll->_mdl->$cls_field_name) {
+                                                $selected_val=$_bll->_mdl->$cls_field_name;
+                                            }
+                                            if(!empty($where_condition[$i]))
+                                                $where_condition_val=$where_condition[$i];
+                                            else {
+                                                $where_condition_val=null;
+                                            }
+                                            if($fields_types[$i]=="checkbox" || $fields_types[$i]=="radio") {
+                                             $cls.=$required_str;
+                                            if(!empty($dropdown_table[$i]) && !empty($label_column[$i]) && !empty($value_column[$i])) {
+                                                $flag=1;
+                                                $field_str.=getChecboxRadios($dropdown_table[$i],$value_column[$i],$label_column[$i],$where_condition_val,$fields_names[$i],$selected_val, $cls, $required_str, $fields_types[$i]).$error_container;
+                                            }
+                                            else{
+                                                    if($transactionmode=="U" && $_bll->_mdl->$cls_field_name==1) {
+                                                        $chk_str="checked='checked'";
+                                                    }
+                                                    $value="1";
+                                                    $field_str.='<input type="hidden" name="'.$fields_names[$i].'" value="0" />';
+                                            }
+                                        } else {
+                                            $cls.="form-control ".$required_str." ".$duplicate_str;
+                                            $chk_str="";
+                                              if (($fields_names[$i] == "outward_sequence" || $fields_names[$i] == "outward_no") && $transactionmode != "U") {
+                                                if ($fields_names[$i] == "outward_sequence") {
+                                                    $value = $next_outward_sequence;
+                                                } else {
+                                                    $value = $outward_no_formatted;
+                                                }
+                                                $readonly_str = "readonly";
+                                            } else {
+                                                $value = isset($_bll->_mdl) ? $_bll->_mdl->$cls_field_name : "";
+                                            }
+                                        }
+                                         if($fields_types[$i]=="number") {
+                                            $step="";
+                                            if(!empty($field_scale[$i]) && $field_scale[$i]>0) {
+                                                for($k=1;$k<$field_scale[$i];$k++) {
+                                                    $step.=0;
+                                                }
+                                                $step="0.".$step."1";
+                                            } else {
+                                                $step=1;
+                                            }
+                                            $step_str='step="'.$step.'"';
+                                             $min=1; 
+                                             if(!empty($allow_zero) && in_array($fields_names[$i],$allow_zero)) 
+                                                 $min=0;
+                                             if(!empty($allow_minus) && in_array($fields_names[$i],$allow_minus)) 
+                                                $min="";
+
+                                             $min_str='min="'.$min.'"';
+                                         }
+                                         if(!empty($value) && ($fields_types[$i]=="date" || $fields_types[$i]=="datetime-local" || $fields_types[$i]=="datetime" || $fields_types[$i]=="timestamp")) {
+                                                $value=date("Y-m-d",strtotime($value));
+                                         }
+                                         if ($fields_names[$i] == 'outward_date' && empty($value)) {
+                                        $value = '';  
+                                            }
+                                        
+                                        if($fields_names[$i] == 'outward_date') {
+                                            $error_container='<div id="outward_date_error" class="invalid-feedback"></div>';
+
+                                        }
+                                         if ($fields_types[$i] == "select") {
+                                            $cls = "form-select " . $required_str . " " . $duplicate_str;
+                                            $table = explode("_", $fields_names[$i]);
+                                            $field_name = $table[0] . "_name";
+                                            $fields = $fields_names[$i] . ", " . $field_name;
+                                            $tablename = "tbl_" . $table[0] . "_master";
+                                            $selected_val = isset($_bll->_mdl->$cls_field_name) ? $_bll->_mdl->$cls_field_name : "";
+                                            $where_condition_val = !empty($where_condition[$i]) ? $where_condition[$i] : null;
+                                            if (!empty($dropdown_table[$i]) && !empty($label_column[$i]) && !empty($value_column[$i])) {
+                                                $dropdown_html = getDropdown($dropdown_table[$i],$value_column[$i],$label_column[$i],
+                                                    $where_condition_val,$fields_names[$i],$selected_val,$cls, $required_str);
+                                            if (strpos(strtolower($fields_names[$i]), 'customer') !== false) {
+                                            $field_str .= '
+                                                <div>
+                                               
+                                                    <div style="display: flex; align-items: flex-start; gap: 5px;">
+                                                    
+                                                        <div style="flex: 1;">
+                                                            ' . $dropdown_html . '
+                                                            ' . $error_container . '
+                                                             <div id="customer_error" class="invalid-feedback" style="display:none;">Please select customer</div>
+                                                        </div>
+                                                       <button type="button" class="btn btn-info" id="btn_inward">Select Inward</button>
+                                                    </div>
+                                                </div>';
+
+                                        } else {
+                                            $field_str .= $dropdown_html . $error_container;
+                                        }
+
+                                            }
+                                        }
+                                        else {
+                                            $field_str.='<input type="'.$fields_types[$i].'" class="'.$cls.'" id="'.$fields_names[$i].'" name="'.$fields_names[$i].'" placeholder="'.ucwords(str_replace("_"," ",$fields_names[$i])).'" value= "'.$value.'"  '.$min_str.' '.$step_str.' '.$chk_str.'  '.$disabled_str.' '.$required_str.' />
+                                            '.$error_container;
+                                        }
+                                        break;
+                                    case "hidden":
+                                        $lbl_str="";
+                                        if($field_data_type[$i]=="int" || $field_data_type[$i]=="bigint"  || $field_data_type[$i]=="tinyint" || $field_data_type[$i]=="decimal")
+                                            $hiddenvalue=0;
+                                        else
+                                            $hiddenvalue="";
+                                        if($fields_names[$i]!="modified_by" && $fields_names[$i]!="modified_date") {
+                                            if($fields_names[$i]=="company_id") {
+                                                $hiddenvalue=COMPANY_ID;
+                                            }
+                                            if($fields_names[$i]=="company_year_id") {
+                                                $hiddenvalue=COMPANY_YEAR_ID;
+                                            }
+                                            else if($fields_names[$i]=="created_by") {
+                                                if($transactionmode=="U") {
+                                                    $hiddenvalue=$_bll->_mdl->$cls_field_name;
+                                                } else {
+                                                    $hiddenvalue=USER_ID;
+                                                }
+                                            } else if($fields_names[$i]=="created_date") {
+                                                if($transactionmode=="U") {
+                                                    $hiddenvalue=$_bll->_mdl->$cls_field_name;
+                                                } else {
+                                                    $hiddenvalue=date("Y-m-d H:i:s");
+                                                }
+                                            } else {
+                                                if($transactionmode=="U") {
+                                                    $hiddenvalue=$_bll->_mdl->$cls_field_name;
+                                                } 
+                                            }
+                                            $hidden_str.='
+                                            <input type="'.$fields_types[$i].'" id="'.$fields_names[$i].'" name="'.$fields_names[$i].'" value= "'.$hiddenvalue.'"  />';
+                                        }
+                                        break;
+                                    case "textarea":
+                                        $value="";
+                                        if(isset($_bll->_mdl)){
+                                             $value=$_bll->_mdl->$cls_field_name;
+                                            }
+                                        $field_str.='<textarea id="'.$fields_names[$i].'" name="'.$fields_names[$i].'" class="'.$cls.'" '.$disabled_str.' placeholder="Enter '.ucwords(str_replace("_"," ",$fields_names[$i])).'"  '.$required_str.' >'.$value.'</textarea>
+                                        '.$error_container;
+                                        break;
+                                     default:
+                                        $field_str .= '<input type="'.$fields_types[$i].'" class="'.$cls.'" id="'.$fields_names[$i].'" name="'.$fields_names[$i].'" value="'.$value.'" '.$readonly_str.' />';
+
+                                        if ($is_disabled) {
+                                            $field_str .= '<input type="hidden" name="'.$fields_names[$i].'" value="'.$value.'" />';
+                                        }
+                                        $field_str .= $error_container;
+                                        break;
+                                } //switch ends
+                                 $cls_err="";
+                                    $lbl_err="";
+                                   
+                                if(empty($after_detail) || (!empty($after_detail) && !in_array($fields_names[$i],$after_detail))) {
+                                    if($table_layout=="vertical" && $fields_types[$i]!="hidden") {
+                                ?>
+                                <div class="row mb-3 align-items-center">
+                                <?php
+                                    }
+                                    echo $lbl_str;
+                                    if($field_str) {
+                                        $extra_margin_class = ($fields_names[$i] == 'outward_date') ? ' mt-3' : '';
+                                    ?>
+                                    <div class="<?php echo $field_layout_classes." ".$cls_err.$extra_margin_class; ?>">
+                                    <?php
+                                        echo $field_str;
+                                        echo $lbl_err;
+                                    ?>
+                                    </div>
+                                <?php
+                                    }
+                                if($table_layout=="vertical" && $fields_types[$i]!="hidden") {
+                                ?>
+                                </div>
+                                <?php
+                                    } // verticle condition ends
+                                } else {
+                                    $lbl_array[]=$lbl_str;
+                                    $field_array[]=$field_str;
+                                    $err_array[]=$lbl_err;
+                                    $clserr_array[]=$cls_err;
+                                }
+                            } //for loop ends
+                        } // field_types if ends
+                    }
+             } 
+            
+            ?>
+                 </div><!-- /.row -->
+              </div>
+              <!-- /.box-body -->
+                    <div class="box-body">
+    <div class="box-detail">
+
+        <table id="outwardDetail" class="table table-bordered table-striped table-sm align-middle" style="width:100%;">
+            <thead class="table-light">
+                <tr>
+                    <th>Inward No.</th>
+                    <th>Inward Date</th>
+                    <th>Lot No.</th>
+                    <th>Item</th>
+                    <th>Marko</th>
+                    <th>Stock Qty.</th>
+                    <th>Out Qty.</th>
+                    <th>Unit</th>
+                    <th>Out. Wt. (Kg.)</th>
+                    <th>Loading Charges</th>
+                    <th>Location</th>
+                </tr>
+            </thead>
+            <tbody id="outwardTableBody">
+                <?php if (!empty($outward_data)): ?>
+                    <?php foreach ($outward_data as $row): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($row['inward_no']) ?></td>
+                            <td><?= htmlspecialchars($row['inward_date']) ?></td>
+                            <td><?= htmlspecialchars($row['lot_no']) ?></td>
+                            <td><?= htmlspecialchars($row['item']) ?></td>
+                            <td><?= htmlspecialchars($row['marko']) ?></td>
+                            <td class="text-end"><?= $row['stock_qty'] ?></td>
+                            <td class="text-end"><?= $row['out_qty'] ?></td>
+                            <td><?= htmlspecialchars($row['unit']) ?></td>
+                            <td class="text-end"><?= $row['out_wt'] ?></td>
+                            <td class="text-end"><?= $row['loading_charges'] ?></td>
+                            <td><?= htmlspecialchars($row['location']) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr id="norecords" class="norecords">
+                        <td colspan="12" class="text-center">No records available.</td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+                
+<div class="modal fade" id="pendingInwardModal" tabindex="-1" aria-labelledby="pendingInwardLabel" aria-hidden="true">
+    <div class="modal-dialog  modal-fullscreen">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="pendingInwardLabel">Pending Inward</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+               <table class="table table-bordered table-striped table-sm align-middle" style="width:100%;">
+    <thead class="table-light">
+        <tr>
+            <th><input type="checkbox" id="selectAll"> Select</th>
+            <th>Inward No.</th>
+            <th>Lot No.</th>
+            <th>Inward Date</th>
+            <th>Broker</th>
+            <th>Item</th>
+            <th>Marko</th>
+            <th>Inward Qty</th>
+            <th>Unit</th>
+            <th>Inward Wt</th>
+            <th>Stock Qty</th>
+            <th>Stock Wt</th>
+            <th>Out Qty</th>
+            <th>Loading Charges</th>
+            <th>Location</th>
+        </tr>
+    </thead>
+    <tbody id="pendingInwardTableBody">
+    <?php
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        echo "<tr>";
+        //echo "<td><input type='checkbox' class='orderCheckbox' value='" . htmlspecialchars($row['purchase_order_no']) . "'></td>";
+        echo "<td>" . htmlspecialchars($row['inward_no'] ?? 'N/A') . "</td>";
+        echo "<td>" . htmlspecialchars($row['lot_no'] ?? 'N/A') . "</td>";
+        echo "<td>" . (!empty($row['inward_date']) ? date("d-m-Y", strtotime($row['inward_date'])) : 'N/A') . "</td>";
+        echo "<td>" . htmlspecialchars($row['broker'] ?? 'N/A') . "</td>";
+        echo "<td>" . htmlspecialchars($row['item_name'] ?? 'N/A') . "</td>";
+        echo "<td>" . htmlspecialchars($row['marko'] ?? 'N/A') . "</td>";
+        echo "<td>" . htmlspecialchars($row['inward_qty'] ?? 'N/A') . "</td>";
+        echo "<td>" . htmlspecialchars($row['unit'] ?? 'N/A') . "</td>";
+        echo "<td>" . htmlspecialchars($row['inward_wt_kg'] ?? 'N/A') . "</td>";
+        echo "<td>" . htmlspecialchars($row['stock_qty'] ?? 'N/A') . "</td>";
+        echo "<td>" . htmlspecialchars($row['stock_wt_kg'] ?? 'N/A') . "</td>";
+        echo "<td>" . htmlspecialchars($row['out_qty'] ?? 'N/A') . "</td>";
+        echo "<td>" . htmlspecialchars($row['loading_charges'] ?? 'N/A') . "</td>";
+        echo "<td>" . htmlspecialchars($row['location'] ?? 'N/A') . "</td>";
+        echo "</tr>";
+    }
+    ?>
+        </tbody>
+    </table>
+            </div>
+             <div class="modal-footer">
+                <button type="button" id="saveSelectedOrders" class="btn btn-success">Ok</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<?php
+    if(!empty($field_array)) {
+?>
+     <!-- remaining main table content-->
+    <div class="box-body">
+    <div class="form-group row gy-2">
+    <?php
+        for ($j = 0; $j < count($field_array); $j++) {
+            echo $lbl_array[$j];
+            if ($field_array[$j]) {
+    ?>
+            <div class="col-8 col-sm-4 col-md-3 col-lg-2 <?php echo $clserr_array[$j]; ?>">
+                <?php
+                    echo $field_array[$j];
+                    echo $err_array[$j];
+                ?>
+            </div>
+    <?php
+            }
+        }
+    ?>
+    </div>
+        
+</div>
+<?php
+    } // empty detail array if ends
+?>
+<!-- .box-footer -->
+              <div class="box-footer">
+               <?php echo  $hidden_str; ?>
+                <input type="hidden" id="transactionmode" name="transactionmode" value= "<?php if($transactionmode=="U") echo "U"; else echo "I";  ?>">
+                <input type="hidden" id="modified_by" name="modified_by" value="<?php echo USER_ID; ?>">
+                <input type="hidden" id="modified_date" name="modified_date" value="<?php echo date("Y-m-d H:i:s"); ?>">
+                <input type="hidden" name="masterHidden" id="masterHidden" value="save" />
+                <input class="btn btn-success" type="button" id="btn_add" name="btn_add" value= "Save">
+                <input type="button" class="btn btn-primary" id="btn_search" name="btn_search" value="Search" onclick="window.location='srh_outward_master.php'">
+                <input class="btn btn-secondary" type="button" id="btn_reset" name="btn_reset" value="Reset" onclick="document.getElementById('masterForm').reset();" >
+                  <input type="hidden" id="outward_no_hidden" name="outward_no" value="<?php echo $outward_no_formatted; ?>">
+              </div>
+              <!-- /.box-footer -->
+        </form>
+        <!-- form end -->
+          </div>
+          </div>
+      </section>
+      <!-- /.content -->
+    </div>
+    
+    <!-- /.container -->
+  </div>
+  <!-- /.content-wrapper -->
+  <?php
+    include("include/footer.php");
+?>
+</div>
+<!-- ./wrapper -->
+
+<?php
+    include("include/footer_includes.php");
+?>
+<script>
+document.addEventListener("DOMContentLoaded", function () {    
+    let jsonData = [];
+    let editIndex = -1;
+    let deleteData = [];
+    let detailIdLabel="";
+    const duplicateInputs = document.querySelectorAll(".duplicate");
+    const masterForm = document.getElementById("masterForm");
+    
+    const firstInput = masterForm.querySelector("input:not([type=hidden]), select, textarea");
+    if (firstInput) {
+        firstInput.focus();
+    }
+    function checkDuplicate(input) {
+       let column_value = input.value.trim();
+       if (column_value == "") return;
+       let id_column="<?php echo "outward_id" ?>";
+       let id_value=document.getElementById(id_column).value;
+       $.ajax({
+            url: "<?php echo "classes/cls_outward_master.php"; ?>",
+            type: "POST",
+            data: { column_name: input.name, column_value:column_value, id_name:id_column,id_value:id_value,table_name:"<?php echo "tbl_outward_master"; ?>",action:"checkDuplicate"},
+            success: function(response) {
+                //let input=document.getElementById("party_sequence");
+                if (response == 1) {
+                    input.classList.add("is-invalid");
+                    input.focus();
+                    let message="";
+                    if(input.validationMessage)
+                        message=input.validationMessage;
+                    else
+                        message="Duplicate Value";
+                    if(input.nextElementSibling) 
+                      input.nextElementSibling.textContent = message;
+                      return false;
+                } else {
+                   input.classList.remove("is-invalid");
+                    if(input.nextElementSibling) 
+                        input.nextElementSibling.textContent = "";
+                }
+            },
+            error: function() {
+                console.log("Error");
+            }
+        }); // ajax completed
+    }
+    /*duplicateInputs.forEach((input) => {
+        input.addEventListener("blur", function () {
+          checkDuplicate(input);
+        });
+      });*/
+
+ document.getElementById("btn_add").addEventListener("click", function (event) {
+    //event.preventDefault();
+    const form = document.getElementById("masterForm"); // Store form reference
+    let i=0;
+    let firstelement;
+     duplicateInputs.forEach((input) => {
+          checkDuplicate(input);
+      });
+    if (!form.checkValidity()) {
+        //event.stopPropagation();
+        form.querySelectorAll(":invalid").forEach(function (input) {
+            if(i==0) {
+                firstelement=input;
+            }
+          input.classList.add("is-invalid");
+          input.nextElementSibling.textContent = input.validationMessage; 
+          i++;
+        });
+         if(firstelement) firstelement.focus(); 
+         return false;
+    } else {
+        form.querySelectorAll(".is-invalid").forEach(function (input) {
+          input.classList.remove("is-invalid");
+          input.nextElementSibling.textContent = "";
+        });
+    }
+    setTimeout(function(){
+        const invalidInputs = document.querySelectorAll(".is-invalid");
+        if(invalidInputs.length>0)
+        {} else{
+        
+            let transactionMode = document.getElementById("transactionmode").value;
+            let message = "";
+            let title = "";
+            let icon = "success";
+
+            if (transactionMode === "U") {
+                message = "Record updated successfully!";
+                title = "Update Successful!";
+            } else {
+                message = "Record added successfully!";
+                title = "Save Successful!";
+            }
+            /*const result=await Swal.fire(title, message, icon);
+            if (result.isConfirmed) {
+              form.removeEventListener("submit", arguments.callee);
+              document.getElementById("btn_add").click();
+            }*/
+             
+             //form.removeEventListener("submit", arguments.callee);
+             // document.getElementById("btn_add").click();
+             (async function() {
+              //await customAlert(message);
+              result=await Swal.fire(title, message, icon);
+                if (result.isConfirmed) {
+                $("#masterForm").submit();
+                }
+                
+            })();
+        }
+    },200);
+} );
+});
+</script>
+   <script>
+$(document).ready(function () {
+    function validateOutwardDate() {
+        var outwardDate = $('#outward_date').val();
+        var errorContainer = $('#outward_date_error');
+        if (outwardDate === '') {
+            showError('Date is required');
+            return false;
+        }
+        var outwardDateParts = outwardDate.split('-');
+        if (outwardDateParts.length !== 3) {
+            showError('Enter Proper Outward Date');
+            return false;
+        }
+        var year = parseInt(outwardDateParts[0], 10);
+        var month = parseInt(outwardDateParts[1], 10);
+        var day = parseInt(outwardDateParts[2], 10);
+        var validDate = new Date(year, month - 1, day);
+        if (
+            validDate.getFullYear() !== year ||
+            validDate.getMonth() !== (month - 1) ||
+            validDate.getDate() !== day
+        ) {
+            showError('Enter Proper Outward Date');
+            return false;
+        }
+        var currentDate = new Date();
+        var todayStr = currentDate.toISOString().split('T')[0];
+        var selectedDate = new Date(outwardDate);
+        var today = new Date(todayStr);
+        selectedDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+
+        if (selectedDate > today) {
+            showError('Date Above Current Period');
+            return false;
+        }
+        var currentMonth = today.getMonth();
+        var currentYear = today.getFullYear();
+        var prevMonth = currentMonth - 1;
+        var prevYear = currentYear;
+        if (prevMonth < 0) {
+            prevMonth = 11;
+            prevYear -= 1;
+        }
+        var selectedMonth = selectedDate.getMonth();
+        var selectedYear = selectedDate.getFullYear();
+        if (
+            selectedYear < prevYear ||
+            (selectedYear === prevYear && selectedMonth < prevMonth)
+        ) {
+            showError('Date Below Current Period');
+            return false;
+        }
+        return true;
+
+        function showError(message) {
+            errorContainer.text(message);
+            $('#outward_date').addClass('is-invalid');
+        }
+    }
+
+    // Fill today's date on first focus if empty
+    $('#outward_date').one('focus', function () {
+        if ($(this).val() === '') {
+            var today = new Date();
+            var formattedToday = today.toISOString().split('T')[0];
+            $(this).val(formattedToday);
+        }
+    });
+
+    // Validate on blur as before
+    $('#outward_date').on('blur', function () {
+        validateOutwardDate();
+    });
+
+    // Validate on btn_add click, prevent submission if invalid
+    $('#btn_add').on('click', function (e) {
+        if (!validateOutwardDate()) {
+            e.preventDefault(); // stop form submission
+            $('#outward_date').focus();
+            return false;
+        }
+    });
+});
+
+</script>
+<script>
+document.getElementById('btn_inward').addEventListener('click', function () {
+    var customerSelect = document.getElementById('customer');
+    var errorDiv = document.getElementById('customer_error');
+    if (customerSelect && customerSelect.value === '') {
+        errorDiv.style.display = 'block';
+        customerSelect.classList.add('is-invalid');
+    } else {
+        errorDiv.style.display = 'none';
+        customerSelect.classList.remove('is-invalid');
+        var myModal = new bootstrap.Modal(document.getElementById('pendingInwardModal'));
+        myModal.show();
+    }
+});
+</script>
+<script>
+const financialYear = "<?php echo $finYear; ?>";
+document.addEventListener("DOMContentLoaded", function () {
+    const outwardSequenceInput = document.getElementById("outward_sequence");
+    const outwardNoInput = document.getElementById("outward_no");
+
+    if (outwardSequenceInput && outwardNoInput) {
+        outwardSequenceInput.addEventListener("input", function () {
+            const sequence = this.value.padStart(4, '0');
+            outwardNoInput.value = sequence + '/' + financialYear;
+        });
+    }
+});
+const outwardNoInput = document.getElementById("outward_no");
+const outwardNoHidden = document.getElementById("outward_no_hidden");
+if (outwardNoInput && outwardNoHidden) {
+    outwardNoInput.addEventListener("input", function () {
+        outwardNoHidden.value = outwardNoInput.value;
+    });
+}
+</script>  
+<script>
+function fetchPendingInwards() {
+    const pendingInwardTableBody = document.getElementById('pendingInwardTableBody');
+    pendingInwardTableBody.innerHTML = `<tr><td colspan="15" class="text-center">Loading...</td></tr>`;
+
+    fetch('get_inwards.php')
+        .then(response => response.json())
+        .then(data => {
+            pendingInwardTableBody.innerHTML = "";
+
+            if (Array.isArray(data) && data.length > 0) {
+                data.forEach(row => {
+                    pendingInwardTableBody.innerHTML += `
+                        <tr>
+                            <td><input type="checkbox" class="inwardCheckbox" value="${row.inward_no || ''}"></td>
+                            <td>${row.inward_no || ''}</td>
+                            <td>${row.lot_no || ''}</td>
+                            <td>${row.inward_date ? new Date(row.inward_date).toLocaleDateString("en-GB") : ''}</td>
+                            <td>${row.broker || ''}</td>
+                            <td>${row.item_name || ''}</td>
+                            <td>${row.marko || ''}</td>
+                            <td>${row.inward_qty || ''}</td>
+                            <td>${row.unit || ''}</td>
+                            <td>${row.inward_wt_kg || ''}</td>
+                            <td>${row.stock_qty || ''}</td>
+                            <td>${row.stock_wt_kg || ''}</td>
+                            <td>${row.out_qty || ''}</td>
+                            <td>${row.loading_charges || ''}</td>
+                            <td>${row.location || ''}</td>
+                        </tr>
+                    `;
+                });
+            } else if (data.message) {
+                pendingInwardTableBody.innerHTML = `<tr><td colspan="15" class="text-center">${data.message}</td></tr>`;
+            } else if (data.error) {
+                pendingInwardTableBody.innerHTML = `<tr><td colspan="15" class="text-center text-danger">${data.error}</td></tr>`;
+            } else {
+                pendingInwardTableBody.innerHTML = `<tr><td colspan="15" class="text-center">No inwards found.</td></tr>`;
+            }
+        })
+        .catch(error => {
+            console.error("Error fetching inwards:", error);
+            pendingInwardTableBody.innerHTML = `<tr><td colspan="15" class="text-center text-danger">Failed to load data.</td></tr>`;
+        });
+}
+document.addEventListener("DOMContentLoaded", fetchPendingInwards);
+</script>
+<?php
+    include("include/footer_close.php");
+?>
